@@ -10,6 +10,8 @@ import {
     Scripts,
     ScrollRestoration,
 } from 'react-router';
+import { TamboProvider } from '@tambo-ai/react';
+import { components, tools } from '~/lib/tambo';
 import {
     FormIcon,
     HomeIcon,
@@ -48,6 +50,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 
     return {
         isAuthenticated: Boolean(user),
+        userId: user?.id ?? null,
     };
 }
 
@@ -193,191 +196,204 @@ export default function App({ loaderData }: Route.ComponentProps) {
     const [isDrawerOpen, toggleDrawer] = useReducer((s) => !s, false);
 
     return (
-        <Drawer
-            className="h-full"
-            contents={
-                <DrawerContent
-                    isAuthenticated={loaderData.isAuthenticated}
-                    onClose={toggleDrawer}
-                />
-            }
-            drawerContentClassName="flex h-full flex-col overflow-hidden"
-            handleClose={toggleDrawer}
-            id="main-drawer"
-            isOpen={isDrawerOpen}
-            right
+        <TamboProvider
+            apiKey={import.meta.env.VITE_TAMBO_API_KEY}
+            components={components}
+            tools={tools}
+            userKey={loaderData.userId ?? undefined}
         >
-            <a
-                href="#main-content"
-                className="focus:bg-base-100 focus:text-base-content sr-only focus:not-sr-only focus:absolute focus:z-50 focus:m-2 focus:rounded focus:px-4 focus:py-2 focus:outline"
+            <Drawer
+                className="h-full"
+                contents={
+                    <DrawerContent
+                        isAuthenticated={loaderData.isAuthenticated}
+                        onClose={toggleDrawer}
+                    />
+                }
+                drawerContentClassName="flex h-full flex-col overflow-hidden"
+                handleClose={toggleDrawer}
+                id="main-drawer"
+                isOpen={isDrawerOpen}
+                right
             >
-                Skip to main content
-            </a>
-            <header className="mb-4 shrink-0">
-                <nav
-                    aria-label="Site"
-                    className="bg-neutral text-neutral-content py-4"
+                <a
+                    href="#main-content"
+                    className="focus:bg-base-100 focus:text-base-content sr-only focus:not-sr-only focus:absolute focus:z-50 focus:m-2 focus:rounded focus:px-4 focus:py-2 focus:outline"
                 >
-                    <Container className="flex items-center justify-between">
-                        <ul className="flex gap-4 px-4">
-                            <li>
-                                <Link to="/" className="flex gap-2">
-                                    <PentagonIcon
-                                        aria-hidden="true"
-                                        className="h-6 w-6"
-                                    />
-                                    <strong className="font-bold">
-                                        Iridium
-                                    </strong>
-                                </Link>
-                            </li>
-                        </ul>
-                        <ul className="hidden gap-4 px-4 md:flex">
-                            {loaderData.isAuthenticated && (
-                                <>
-                                    <li>
-                                        <Form
-                                            method="POST"
-                                            action="/logout"
-                                            className="flex gap-2"
-                                        >
-                                            <input
-                                                type="hidden"
-                                                name="intent"
-                                                value="logout"
-                                            />
-                                            <button
-                                                type="submit"
-                                                className="flex gap-2"
-                                            >
-                                                <LogOutIcon
-                                                    aria-hidden="true"
-                                                    className="h-6 w-6"
-                                                />
-                                                <strong className="font-bold">
-                                                    Logout
-                                                </strong>
-                                            </button>
-                                        </Form>
-                                    </li>
-                                </>
-                            )}
-                            {!loaderData.isAuthenticated && (
+                    Skip to main content
+                </a>
+                <header className="mb-4 shrink-0">
+                    <nav
+                        aria-label="Site"
+                        className="bg-neutral text-neutral-content py-4"
+                    >
+                        <Container className="flex items-center justify-between">
+                            <ul className="flex gap-4 px-4">
                                 <li>
-                                    <Link to="/login" className="flex gap-2">
-                                        <LockIcon
+                                    <Link to="/" className="flex gap-2">
+                                        <PentagonIcon
                                             aria-hidden="true"
                                             className="h-6 w-6"
                                         />
                                         <strong className="font-bold">
-                                            Login
+                                            Iridium
                                         </strong>
                                     </Link>
                                 </li>
-                            )}
-                        </ul>
-                        <button
-                            type="button"
-                            className="btn btn-ghost mx-4 px-2 md:hidden"
-                            onClick={toggleDrawer}
-                            aria-label="Open navigation menu"
-                            aria-expanded={isDrawerOpen}
-                            aria-controls="main-drawer"
-                        >
-                            <MenuIcon aria-hidden="true" className="h-6 w-6" />
-                        </button>
-                    </Container>
-                </nav>
-            </header>
-            <main
-                id="main-content"
-                tabIndex={-1}
-                className="min-h-0 grow overflow-hidden"
-            >
-                <Container className="grid h-full grid-cols-1 gap-4 md:grid-cols-12">
-                    <Card className="hidden md:col-span-4 md:block lg:col-span-3">
-                        <nav aria-label="Main navigation">
-                            <ul className="flex flex-col gap-4 p-4">
-                                <li>
-                                    <NavLink
-                                        to="/"
-                                        className={navLinkClassName}
-                                    >
-                                        <HomeIcon
-                                            aria-hidden="true"
-                                            className="h-6 w-6"
-                                        />
-                                        Home
-                                    </NavLink>
-                                </li>
+                            </ul>
+                            <ul className="hidden gap-4 px-4 md:flex">
                                 {loaderData.isAuthenticated && (
                                     <>
                                         <li>
-                                            <NavLink
-                                                to="/profile"
-                                                className={navLinkClassName}
+                                            <Form
+                                                method="POST"
+                                                action="/logout"
+                                                className="flex gap-2"
                                             >
-                                                <UserCircle2Icon
-                                                    aria-hidden="true"
-                                                    className="h-6 w-6"
+                                                <input
+                                                    type="hidden"
+                                                    name="intent"
+                                                    value="logout"
                                                 />
-                                                Profile
-                                            </NavLink>
-                                        </li>
-                                        <li>
-                                            <NavLink
-                                                to="/chat"
-                                                className={navLinkClassName}
-                                            >
-                                                <MessageSquareIcon
-                                                    aria-hidden="true"
-                                                    className="h-6 w-6"
-                                                />
-                                                Chat
-                                            </NavLink>
-                                        </li>
-                                        <li>
-                                            <NavLink
-                                                to="/notes"
-                                                className={navLinkClassName}
-                                            >
-                                                <StickyNoteIcon
-                                                    aria-hidden="true"
-                                                    className="h-6 w-6"
-                                                />
-                                                Notes
-                                            </NavLink>
-                                        </li>
-                                        <li>
-                                            <NavLink
-                                                to="/form"
-                                                className={navLinkClassName}
-                                            >
-                                                <FormIcon
-                                                    aria-hidden="true"
-                                                    className="h-6 w-6"
-                                                />
-                                                Form
-                                            </NavLink>
+                                                <button
+                                                    type="submit"
+                                                    className="flex gap-2"
+                                                >
+                                                    <LogOutIcon
+                                                        aria-hidden="true"
+                                                        className="h-6 w-6"
+                                                    />
+                                                    <strong className="font-bold">
+                                                        Logout
+                                                    </strong>
+                                                </button>
+                                            </Form>
                                         </li>
                                     </>
                                 )}
+                                {!loaderData.isAuthenticated && (
+                                    <li>
+                                        <Link
+                                            to="/login"
+                                            className="flex gap-2"
+                                        >
+                                            <LockIcon
+                                                aria-hidden="true"
+                                                className="h-6 w-6"
+                                            />
+                                            <strong className="font-bold">
+                                                Login
+                                            </strong>
+                                        </Link>
+                                    </li>
+                                )}
                             </ul>
-                        </nav>
-                    </Card>
-                    <Card className="col-span-1 min-h-0 overflow-y-auto md:col-span-8 lg:col-span-9">
-                        <Outlet />
-                    </Card>
-                </Container>
-            </main>
-            <footer className="bg-base-300 mt-4 shrink-0 py-4">
-                <Container className="px-4">
-                    <p className="text-base-content">
-                        Iridium. Go build. Be bold.
-                    </p>
-                </Container>
-            </footer>
-        </Drawer>
+                            <button
+                                type="button"
+                                className="btn btn-ghost mx-4 px-2 md:hidden"
+                                onClick={toggleDrawer}
+                                aria-label="Open navigation menu"
+                                aria-expanded={isDrawerOpen}
+                                aria-controls="main-drawer"
+                            >
+                                <MenuIcon
+                                    aria-hidden="true"
+                                    className="h-6 w-6"
+                                />
+                            </button>
+                        </Container>
+                    </nav>
+                </header>
+                <main
+                    id="main-content"
+                    tabIndex={-1}
+                    className="min-h-0 grow overflow-hidden"
+                >
+                    <Container className="grid h-full grid-cols-1 gap-4 md:grid-cols-12">
+                        <Card className="hidden md:col-span-4 md:block lg:col-span-3">
+                            <nav aria-label="Main navigation">
+                                <ul className="flex flex-col gap-4 p-4">
+                                    <li>
+                                        <NavLink
+                                            to="/"
+                                            className={navLinkClassName}
+                                        >
+                                            <HomeIcon
+                                                aria-hidden="true"
+                                                className="h-6 w-6"
+                                            />
+                                            Home
+                                        </NavLink>
+                                    </li>
+                                    {loaderData.isAuthenticated && (
+                                        <>
+                                            <li>
+                                                <NavLink
+                                                    to="/profile"
+                                                    className={navLinkClassName}
+                                                >
+                                                    <UserCircle2Icon
+                                                        aria-hidden="true"
+                                                        className="h-6 w-6"
+                                                    />
+                                                    Profile
+                                                </NavLink>
+                                            </li>
+                                            <li>
+                                                <NavLink
+                                                    to="/chat"
+                                                    className={navLinkClassName}
+                                                >
+                                                    <MessageSquareIcon
+                                                        aria-hidden="true"
+                                                        className="h-6 w-6"
+                                                    />
+                                                    Chat
+                                                </NavLink>
+                                            </li>
+                                            <li>
+                                                <NavLink
+                                                    to="/notes"
+                                                    className={navLinkClassName}
+                                                >
+                                                    <StickyNoteIcon
+                                                        aria-hidden="true"
+                                                        className="h-6 w-6"
+                                                    />
+                                                    Notes
+                                                </NavLink>
+                                            </li>
+                                            <li>
+                                                <NavLink
+                                                    to="/form"
+                                                    className={navLinkClassName}
+                                                >
+                                                    <FormIcon
+                                                        aria-hidden="true"
+                                                        className="h-6 w-6"
+                                                    />
+                                                    Form
+                                                </NavLink>
+                                            </li>
+                                        </>
+                                    )}
+                                </ul>
+                            </nav>
+                        </Card>
+                        <Card className="col-span-1 min-h-0 overflow-y-auto md:col-span-8 lg:col-span-9">
+                            <Outlet />
+                        </Card>
+                    </Container>
+                </main>
+                <footer className="bg-base-300 mt-4 shrink-0 py-4">
+                    <Container className="px-4">
+                        <p className="text-base-content">
+                            Iridium. Go build. Be bold.
+                        </p>
+                    </Container>
+                </footer>
+            </Drawer>
+        </TamboProvider>
     );
 }
 

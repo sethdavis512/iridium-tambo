@@ -1,10 +1,17 @@
-import { useChat } from '@ai-sdk/react';
-import type { UIMessage } from 'ai';
-import { DefaultChatTransport } from 'ai';
+import {
+    ComponentRenderer,
+    useTambo,
+    useTamboThreadInput,
+} from '@tambo-ai/react';
+import type {
+    Content,
+    TamboComponentContent,
+    TamboToolUseContent,
+    ToolResultContent,
+} from '@tambo-ai/react';
 import {
     CircleXIcon,
     LoaderCircleIcon,
-    RefreshCwIcon,
     SendHorizonalIcon,
     StopCircleIcon,
     WrenchIcon,
@@ -20,11 +27,6 @@ import { getUserFromSession } from '~/models/session.server';
 import invariant from 'tiny-invariant';
 import { data, isRouteErrorResponse, useRouteError } from 'react-router';
 import { useEffect, useRef, useState } from 'react';
-
-const transport = new DefaultChatTransport({
-    api: '/api/chat',
-    credentials: 'include',
-});
 
 const PRESET_MESSAGES = [
     {
@@ -66,114 +68,119 @@ export async function loader({ request, params }: Route.LoaderArgs) {
         throw data('Forbidden', { status: 403 });
     }
 
-    const messages: UIMessage[] = thread.messages.map((msg) => ({
-        id: msg.id,
-        role: msg.role === 'USER' ? ('user' as const) : ('assistant' as const),
-        content: '',
-        parts: JSON.parse(msg.content),
-        createdAt: msg.createdAt,
-    }));
-
-    return {
-        thread: { ...thread, messages },
-    };
-}
-
-interface ToolPart {
-    toolCallId: string;
-    toolName: string;
-    state: string;
-}
-
-function isToolPart(part: {
-    type: string;
-}): part is ToolPart & { type: string } {
-    return part.type.startsWith('tool-') || part.type === 'dynamic-tool';
+    return { threadId: params.threadId };
 }
 
 const NOTE_TOOLS = new Set(['create_note', 'list_notes', 'search_notes']);
-function ToolPartFallback({ part }: { part: ToolPart }) {
+
+function ToolPartFallback({
+    name,
+    completed,
+}: {
+    name: string;
+    completed: boolean;
+}) {
     return (
         <div className="mt-1 flex items-center gap-1 text-xs opacity-70">
             <WrenchIcon aria-hidden="true" className="h-3 w-3" />
             <span>
-                {part.toolName}
-                {part.state === 'output-available' && ' \u2713'}
-                {(part.state === 'input-available' ||
-                    part.state === 'input-streaming') &&
-                    ' \u2026'}
+                {name}
+                {completed ? ' \u2713' : ' \u2026'}
             </span>
         </div>
     );
 }
 
-export default function ThreadRoute({
-    loaderData,
-    params,
-}: Route.ComponentProps) {
-    const [chatInput, setChatInput] = useState('');
+/** Extract the first JSON-parseable result from a tool_result content array. */
+function parseToolResult(
+    content: ToolResultContent['content'],
+): Record<string, unknown> | undefined {
+    for (const block of content) {
+        if (block.type === 'text') {
+            try {
+                const parsed = JSON.parse(block.text);
+                if (parsed && typeof parsed === 'object') {
+                    return parsed as Record<string, unknown>;
+                }
+            } catch {
+                // not JSON, skip
+            }
+        }
+    }
+    return undefined;
+}
+
+export default function ThreadRoute({ params }: Route.ComponentProps) {
     const messageRef = useRef<HTMLDivElement>(null);
 
     const {
         messages,
-        sendMessage,
-        error,
-        clearError,
-        regenerate,
-        status,
-        stop,
-    } = useChat({
-        id: params.threadId,
-        messages: loaderData?.thread.messages,
-        transport,
-        onError: (error) => {
-            console.error('Chat error:', error);
-        },
-    });
+        isIdle,
+        isStreaming,
+        isWaiting,
+        currentThreadId,
+        initThread,
+        cancelRun,
+        streamingState,
+    } = useTambo();
 
+    const { value, setValue, submit, isPending } = useTamboThreadInput();
+
+    // Bind the React Router thread ID into Tambo's runtime.
+    useEffect(() => {
+        initThread(params.threadId);
+    }, [params.threadId, initThread]);
+
+    // Auto-scroll to bottom on new messages.
     useEffect(() => {
         if (messageRef.current) {
             messageRef.current.scrollTop = messageRef.current.scrollHeight;
         }
     }, [messages]);
 
-    const handleSend = () => {
-        if (!chatInput.trim()) return;
-        sendMessage({ text: chatInput });
-        setChatInput('');
+    // Track error dismissal; reset when a new error arrives.
+    const [errorDismissed, setErrorDismissed] = useState(false);
+    useEffect(() => {
+        setErrorDismissed(false);
+    }, [streamingState.error]);
+    const showError = streamingState.error && !errorDismissed;
+
+    const handleSend = async () => {
+        if (!value.trim()) return;
+        await submit();
+        setValue('');
     };
+
+    // For preset buttons: setValue then submit after React flushes the update.
+    const sendPreset = (text: string) => {
+        setValue(text);
+        setTimeout(() => submit(), 0);
+    };
+
+    const isActive = isStreaming || isWaiting || isPending;
 
     return (
         <>
-            {error && (
+            {showError && (
                 <div role="alert" className="alert alert-error">
                     <CircleXIcon aria-hidden="true" className="h-6 w-6" />
-                    <span>Something went wrong.</span>
-                    <div className="flex gap-1">
-                        <button
-                            className="btn btn-sm"
-                            onClick={() => regenerate()}
-                        >
-                            <RefreshCwIcon
-                                aria-hidden="true"
-                                className="h-4 w-4"
-                            />
-                            Retry
-                        </button>
-                        <button
-                            className="btn btn-ghost btn-sm"
-                            onClick={() => clearError()}
-                        >
-                            <XIcon aria-hidden="true" className="h-4 w-4" />
-                            Dismiss
-                        </button>
-                    </div>
+                    <span>
+                        {streamingState.error?.message ??
+                            'Something went wrong.'}
+                    </span>
+                    <button
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => setErrorDismissed(true)}
+                    >
+                        <XIcon aria-hidden="true" className="h-4 w-4" />
+                        Dismiss
+                    </button>
                 </div>
             )}
             <div
                 ref={messageRef}
                 aria-live="polite"
-                aria-busy={status === 'streaming'}
+                aria-busy={isStreaming}
                 className="rounded-box bg-base-100 flex min-h-0 grow flex-col gap-4 overflow-y-auto p-4"
             >
                 {/* Spacer pushes messages to the bottom. Using justify-end with
@@ -184,53 +191,87 @@ export default function ThreadRoute({
                     messages.map((message) => {
                         const isUser = message.role === 'user';
 
-                        const textContent = message.parts
-                            .filter(
-                                (part) =>
-                                    part.type === 'text' && 'text' in part,
-                            )
-                            .map((part) => part.text)
-                            .join('\n\n');
-
-                        const toolParts = message.parts.filter((part) =>
-                            isToolPart(part),
-                        ) as unknown as ToolPart[];
+                        // Build a lookup from toolUseId → tool_result for this message.
+                        const toolResults = new Map<
+                            string,
+                            ToolResultContent['content']
+                        >();
+                        message.content.forEach((block: Content) => {
+                            if (block.type === 'tool_result') {
+                                const r = block as ToolResultContent;
+                                toolResults.set(r.toolUseId, r.content);
+                            }
+                        });
 
                         const content = (
                             <>
-                                {textContent && (
-                                    <Markdown>{textContent}</Markdown>
-                                )}
-                                {toolParts.map((part) =>
-                                    NOTE_TOOLS.has(part.toolName) ? (
-                                        <NoteToolPart
-                                            key={part.toolCallId}
-                                            toolName={part.toolName}
-                                            state={part.state}
-                                            output={
-                                                part.state ===
-                                                'output-available'
-                                                    ? (
-                                                          part as unknown as {
-                                                              output: Record<
-                                                                  string,
-                                                                  unknown
-                                                              >;
-                                                          }
-                                                      ).output
-                                                    : undefined
+                                {message.content.map(
+                                    (block: Content, i: number) => {
+                                        if (block.type === 'text') {
+                                            return block.text ? (
+                                                <Markdown key={i}>
+                                                    {block.text}
+                                                </Markdown>
+                                            ) : null;
+                                        }
+
+                                        if (block.type === 'component') {
+                                            const c =
+                                                block as TamboComponentContent;
+                                            return (
+                                                <ComponentRenderer
+                                                    key={c.id}
+                                                    content={c}
+                                                    threadId={currentThreadId}
+                                                    messageId={message.id}
+                                                />
+                                            );
+                                        }
+
+                                        if (block.type === 'tool_use') {
+                                            const t =
+                                                block as TamboToolUseContent;
+                                            const resultContent =
+                                                toolResults.get(t.id);
+                                            const completed =
+                                                t.hasCompleted ?? false;
+                                            const output = resultContent
+                                                ? parseToolResult(resultContent)
+                                                : undefined;
+
+                                            if (NOTE_TOOLS.has(t.name)) {
+                                                return (
+                                                    <NoteToolPart
+                                                        key={t.id}
+                                                        toolName={t.name}
+                                                        state={
+                                                            completed
+                                                                ? 'output-available'
+                                                                : 'input-available'
+                                                        }
+                                                        output={output}
+                                                    />
+                                                );
                                             }
-                                        />
-                                    ) : (
-                                        <ToolPartFallback
-                                            key={part.toolCallId}
-                                            part={part}
-                                        />
-                                    ),
+                                            return (
+                                                <ToolPartFallback
+                                                    key={t.id}
+                                                    name={t.name}
+                                                    completed={completed}
+                                                />
+                                            );
+                                        }
+
+                                        // tool_result blocks are rendered via tool_use above.
+                                        return null;
+                                    },
                                 )}
-                                {!textContent &&
-                                    toolParts.length === 0 &&
-                                    !isUser && (
+                                {/* Waiting indicator for empty assistant message */}
+                                {!isUser &&
+                                    message.content.every(
+                                        (b: Content) =>
+                                            b.type === 'tool_result',
+                                    ) && (
                                         <span
                                             role="status"
                                             aria-label="Loading response"
@@ -259,17 +300,28 @@ export default function ThreadRoute({
                         No messages yet
                     </div>
                 )}
+                {/* Waiting indicator before the first token arrives */}
+                {isWaiting && messages.length > 0 && (
+                    <ChatBubble variant="default" placement="start">
+                        <span role="status" aria-label="Loading response">
+                            <LoaderCircleIcon
+                                aria-hidden="true"
+                                className="h-5 w-5 animate-spin"
+                            />
+                        </span>
+                    </ChatBubble>
+                )}
             </div>
             <div className="flex flex-col gap-1.5">
                 <div className="flex flex-wrap gap-1.5 px-1">
-                    {PRESET_MESSAGES.map(({ label, value }) => (
+                    {PRESET_MESSAGES.map(({ label, value: presetValue }) => (
                         <button
                             key={label}
                             type="button"
                             className="btn btn-content rounded-box btn-xs"
-                            onClick={() => sendMessage({ text: value })}
-                            disabled={status !== 'ready'}
-                            title={value}
+                            onClick={() => sendPreset(presetValue)}
+                            disabled={!isIdle}
+                            title={presetValue}
                         >
                             {label}
                         </button>
@@ -282,22 +334,20 @@ export default function ThreadRoute({
                         aria-label="Message"
                         className="input rounded-field grow"
                         placeholder="Your message here..."
-                        value={chatInput}
-                        onChange={(e) => setChatInput(e.target.value)}
+                        value={value}
+                        onChange={(e) => setValue(e.target.value)}
                         onKeyDown={(e) => {
                             if (e.key === 'Enter' && !e.shiftKey) {
                                 e.preventDefault();
                                 handleSend();
                             }
                         }}
-                        disabled={status !== 'ready'}
+                        disabled={isActive}
                     />
                     <button
                         className="btn btn-default"
-                        onClick={stop}
-                        disabled={
-                            status !== 'streaming' && status !== 'submitted'
-                        }
+                        onClick={() => cancelRun()}
+                        disabled={!isActive}
                     >
                         <StopCircleIcon
                             aria-hidden="true"
@@ -308,7 +358,7 @@ export default function ThreadRoute({
                     <button
                         className="btn btn-secondary"
                         onClick={handleSend}
-                        disabled={status !== 'ready'}
+                        disabled={isActive}
                     >
                         <SendHorizonalIcon
                             aria-hidden="true"
