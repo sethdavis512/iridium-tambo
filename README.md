@@ -1,4 +1,4 @@
-# Iridium
+# Iridium Tambo
 
 A full-stack starter kit for shipping AI-powered products. Clone the repo, configure your environment, and have a working application with authentication, AI chat, and agent tools in minutes.
 
@@ -6,10 +6,10 @@ A full-stack starter kit for shipping AI-powered products. Clone the repo, confi
 
 - **Authentication** — Email/password sign-up and sign-in via Better Auth with secure HTTP-only sessions and automatic refresh
 - **Role-based access control** — USER, EDITOR, and ADMIN roles baked into the schema and session helpers
-- **AI chat** — Conversational interface powered by VoltAgent and the Vercel AI SDK. Messages persist to PostgreSQL and are organized into threads
+- **AI chat** — Conversational interface powered by Tambo AI. Threads and messages are managed by Tambo's cloud — no local DB storage for chat
 - **Agent tools** — The AI assistant can create, list, and search notes on behalf of the user, with tool invocations rendered inline in the chat
+- **Custom UI components** — Tambo renders rich components (InfoCard, StepList, ProsCons, NotesGallery, DataTable) inline in the chat
 - **Notes** — A browsable notes page at `/notes` showing all notes saved by the agent, demonstrating the full tool-to-UI vertical slice
-- **Working memory** — VoltAgent remembers user preferences and context across conversations via PostgreSQL-backed working memory
 - **Form validation** — Client and server-side validation using Zod and React Hook Form with a working example
 - **Type-safe end to end** — Prisma generates types from the schema, Zod validates runtime data, React Router 7 types routes and loaders, CVA ensures type-safe component variants
 
@@ -21,7 +21,7 @@ A full-stack starter kit for shipping AI-powered products. Clone the repo, confi
 | UI | React 19, Tailwind CSS v4, DaisyUI v5 |
 | Database | PostgreSQL via Prisma ORM |
 | Auth | Better Auth |
-| AI | VoltAgent, Vercel AI SDK, OpenAI gpt-4o-mini |
+| AI | Tambo AI (`@tambo-ai/react`, `@tambo-ai/typescript-sdk`) |
 | Validation | Zod, React Hook Form |
 | Runtime | Bun (dev), Node 20 Alpine (production) |
 
@@ -31,7 +31,7 @@ A full-stack starter kit for shipping AI-powered products. Clone the repo, confi
 
 - [Bun](https://bun.sh/) installed
 - PostgreSQL database (local or hosted, e.g. [Railway](https://railway.com))
-- OpenAI API key
+- Tambo API key ([tambo.co](https://tambo.co))
 
 ### Installation
 
@@ -45,7 +45,8 @@ Copy `.env.example` to `.env` and fill in:
 
 ```
 DATABASE_URL="postgresql://..."
-ANTHROPIC_API_KEY="sk-ant-..."
+TAMBO_API_KEY="..."
+VITE_TAMBO_API_KEY="..."
 BETTER_AUTH_BASE_URL="http://localhost:5173"
 VITE_BETTER_AUTH_BASE_URL="http://localhost:5173"
 ```
@@ -53,8 +54,8 @@ VITE_BETTER_AUTH_BASE_URL="http://localhost:5173"
 ### Database
 
 ```bash
-bunx prisma migrate dev   # Apply migrations
-bunx prisma db seed       # Seed with demo users
+bunx --bun prisma migrate dev   # Apply migrations
+bunx --bun prisma db seed       # Seed with demo users
 ```
 
 ### Development
@@ -69,25 +70,36 @@ The app will be available at `http://localhost:5173`.
 
 ```
 app/
-├── components/          # Shared UI components
+├── components/          # Shared UI + Tambo custom components
 ├── generated/prisma/    # Generated Prisma client
-├── lib/                 # Prisma client, auth config
+├── lib/
+│   ├── auth.server.ts   # Better Auth server config
+│   ├── auth.client.ts   # Better Auth client config
+│   ├── prisma.ts        # Prisma client singleton
+│   ├── tambo.server.ts  # Tambo SDK server singleton
+│   └── tambo.ts         # Tambo tools + component registry
 ├── middleware/           # Auth middleware
 ├── models/              # Server-side data access (thread, note, session)
 ├── routes/              # React Router route modules
-├── voltagent/           # Agent definition and tools
-│   ├── agents.ts        # Agent config, tool definitions
-│   └── index.ts         # Agent export
-└── root.tsx             # App shell, navigation, layout
+└── root.tsx             # App shell, TamboProvider, layout
 prisma/
 ├── schema.prisma        # Database schema
 ├── migrations/          # Migration history
 └── seed.ts              # Database seeder
 ```
 
-## Agent Tools
+## AI Chat Architecture
 
-The AI assistant (defined in `app/voltagent/agents.ts`) has three tools:
+Tambo is the source of truth for threads and messages — no local DB storage for chat.
+
+- **Server-side**: `app/lib/tambo.server.ts` creates a singleton `TamboAI` client for thread CRUD
+- **Client-side**: `TamboProvider` in `app/root.tsx` with `apiKey` passed via loader
+- **Chat UI**: `useTambo()` and `useTamboThreadInput()` hooks from `@tambo-ai/react`
+- **Thread CRUD**: loaders/actions go through `app/models/thread.server.ts` → Tambo SDK
+
+### Tools
+
+Tools are defined in `app/lib/tambo.ts` using `defineTool()`:
 
 | Tool | Description |
 | ------ | ------------- |
@@ -95,9 +107,19 @@ The AI assistant (defined in `app/voltagent/agents.ts`) has three tools:
 | `list_notes` | Lists all of the user's saved notes |
 | `search_notes` | Searches notes by keyword across titles and content |
 
-Tool invocations are rendered inline in the chat via `NoteToolPart`. Notes are browsable at `/notes`.
+### Custom Components
 
-To add your own tools, follow the pattern in `agents.ts` — define a `createTool()` with a Zod schema, implement the `execute` function, add it to the agent's `tools` array, and create a UI component for it.
+Components registered with `TamboProvider` for rich AI responses:
+
+| Component | Description |
+| ----------- | ------------- |
+| `InfoCard` | Callout card with variants (info, success, warning, error, tip) |
+| `StepList` | Ordered list of steps/tasks for instructions or guides |
+| `ProsCons` | Two-column pros and cons comparison |
+| `NotesGallery` | Grid display of user notes |
+| `DataTable` | Label/value table for structured data |
+
+To add your own tools, follow the pattern in `app/lib/tambo.ts` — use `defineTool()` with a Zod schema, implement the handler, and add it to the `tools` array. For custom components, define a `TamboComponent` entry with a `propsSchema` and add it to the `components` array.
 
 ## Troubleshooting
 
