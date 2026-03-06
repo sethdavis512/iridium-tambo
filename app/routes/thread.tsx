@@ -183,6 +183,17 @@ export default function ThreadRoute({ params }: Route.ComponentProps) {
                     messages.map((message) => {
                         const isUser = message.role === 'user';
 
+                        // Skip messages that only contain tool_result blocks
+                        // (tool results are rendered alongside their tool_use in another message).
+                        const hasVisibleContent =
+                            message.content.length > 0 &&
+                            message.content.some(
+                                (b: Content) =>
+                                    b.type !== 'tool_result',
+                            );
+
+                        if (!hasVisibleContent) return null;
+
                         // Build a lookup from toolUseId → tool_result for this message.
                         const toolResults = new Map<
                             string,
@@ -258,25 +269,6 @@ export default function ThreadRoute({ params }: Route.ComponentProps) {
                                         return null;
                                     },
                                 )}
-                                {/* Waiting indicator for assistant message with only tool results (still processing) */}
-                                {!isUser &&
-                                    (isStreaming || isWaiting) &&
-                                    message ===
-                                        messages[messages.length - 1] &&
-                                    message.content.every(
-                                        (b: Content) =>
-                                            b.type === 'tool_result',
-                                    ) && (
-                                        <span
-                                            role="status"
-                                            aria-label="Loading response"
-                                        >
-                                            <LoaderCircleIcon
-                                                aria-hidden="true"
-                                                className="h-5 w-5 animate-spin"
-                                            />
-                                        </span>
-                                    )}
                             </>
                         );
 
