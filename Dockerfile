@@ -12,6 +12,8 @@ FROM oven/bun:1-alpine AS build-env
 COPY . /app/
 COPY --from=development-dependencies-env /app/node_modules /app/node_modules
 WORKDIR /app
+ARG DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder"
+ENV DATABASE_URL=$DATABASE_URL
 RUN bunx --bun prisma generate && bun run build
 
 FROM node:20-alpine
@@ -19,6 +21,7 @@ COPY ./package.json /app/
 COPY --from=production-dependencies-env /app/node_modules /app/node_modules
 COPY --from=development-dependencies-env /app/node_modules/prisma /app/node_modules/prisma
 COPY --from=development-dependencies-env /app/node_modules/@prisma/engines /app/node_modules/@prisma/engines
+RUN mkdir -p /app/node_modules/.bin && ln -sf ../prisma/build/index.js /app/node_modules/.bin/prisma
 COPY --from=build-env /app/build /app/build
 COPY ./prisma /app/prisma
 COPY ./prisma.config.ts /app/prisma.config.ts
