@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^cd ~/repositories/iridium-tambo && railway deployment list --limit 3 --json 2>&1 \\| python3 -c \"import sys,json; data=json\\.load\\(sys\\.stdin\\); \\[print\\(f'\\{d\\[\\\\\"id\\\\\"\\]\\} \\{d\\[\\\\\"status\\\\\"\\]\\} \\{d\\[\\\\\"createdAt\\\\\"\\]\\}'\\) for d in data\\]\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}
