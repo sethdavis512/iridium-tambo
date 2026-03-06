@@ -51,6 +51,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     return {
         isAuthenticated: Boolean(user),
         userId: user?.id ?? null,
+        tamboApiKey: process.env.TAMBO_API_KEY ?? '',
     };
 }
 
@@ -197,7 +198,7 @@ export default function App({ loaderData }: Route.ComponentProps) {
 
     return (
         <TamboProvider
-            apiKey={import.meta.env.VITE_TAMBO_API_KEY}
+            apiKey={loaderData.tamboApiKey}
             components={components}
             tools={tools}
             userKey={loaderData.userId ?? undefined}

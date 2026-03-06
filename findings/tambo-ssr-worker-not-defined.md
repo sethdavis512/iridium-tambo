@@ -96,6 +96,34 @@ Key details:
 - `enforce: 'pre'` is required so the shim runs before Vite's default resolver.
 - All packages in the chain must appear in both `BROWSER_ONLY_MODULES` and `ssr.noExternal`, otherwise Node's native CJS loader picks them up directly, bypassing the plugin.
 
+## Additional issue: production build fails with named export error
+
+The `export default {}` shim above is sufficient for Vite's dev server, but **Rollup's production build** (used by `react-router build` / `vite build`) performs strict named-export validation. Because `@tambo-ai/react` uses a named import:
+
+```js
+import { useReactMediaRecorder } from "react-media-recorder";
+```
+
+…the SSR build fails with:
+
+```
+RollupError: "useReactMediaRecorder" is not exported by "ssr-empty",
+imported by "node_modules/@tambo-ai/react/esm/hooks/use-tambo-voice.js".
+```
+
+### Fix
+
+The shim module must re-export a stub for every named binding that downstream code imports. For `react-media-recorder` the only named import used by `@tambo-ai/react` is `useReactMediaRecorder`:
+
+```ts
+load(id) {
+    if (id === '\0ssr-empty')
+        return 'export default {}; export const useReactMediaRecorder = () => ({});';
+},
+```
+
+This satisfies Rollup's static analysis while keeping the module inert during SSR.
+
 ## Suggested fixes
 
 1. **Lazy-load `react-media-recorder`**: The voice recording hook (`use-tambo-voice.tsx`) should dynamically `import()` `react-media-recorder` only when voice features are actually used in the browser, rather than importing it at the top level. This would prevent the entire media-encoder chain from being evaluated during SSR.
