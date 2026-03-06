@@ -53,8 +53,9 @@ export default function Home() {
                         vertical slice.
                     </li>
                     <li>
-                        Working memory powered by Tambo AI. The agent remembers
-                        user preferences and context across conversations.
+                        The agent can save, search, and retrieve notes on your
+                        behalf across any conversation using the included note
+                        tools, backed by PostgreSQL.
                     </li>
                     <li>
                         Client and server-side form validation using Zod and
@@ -76,7 +77,7 @@ export default function Home() {
                         PostgreSQL via Prisma, schema at prisma/schema.prisma
                     </li>
                     <li>
-                        Tambo AI for agent orchestration, memory, and tool
+                        Tambo AI for thread management, streaming, and tool
                         execution
                     </li>
                     <li>Tailwind CSS v4 and DaisyUI v5 for styling</li>
