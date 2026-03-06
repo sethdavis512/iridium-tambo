@@ -1,13 +1,13 @@
 # Iridium — Project Guidelines
 
-Full-stack AI chat app built with React Router v7, Better Auth, Prisma, and Vercel AI SDK.
+Full-stack AI chat app built with React Router v7, Better Auth, Prisma, and Tambo AI.
 
 ## Tech Stack
 
 - **Framework**: React Router v7 (SSR, `v8_middleware` future flag)
 - **Auth**: Better Auth with Prisma adapter, admin plugin (roles: USER, EDITOR, ADMIN)
 - **Database**: PostgreSQL via Prisma (schema at `prisma/schema.prisma`, client generated to `app/generated/prisma/`)
-- **AI**: Vercel AI SDK (`ai`, `@ai-sdk/openai`, `@ai-sdk/react`) — model: `gpt-4o-mini`
+- **AI**: Tambo AI (`@tambo-ai/react`, `@tambo-ai/typescript-sdk`) — client-side chat via `useTambo`, server-side thread CRUD via TypeScript SDK
 - **Styling**: Tailwind CSS v4 + DaisyUI v5, CVA with tailwind-merge
 - **Runtime**: Bun (local dev), Node 20 Alpine (Docker/prod)
 - **Validation**: Zod
@@ -42,9 +42,9 @@ API routes live under `/api` prefix and export only `loader`/`action` (no UI com
 
 Plain exported async functions in `app/models/*.server.ts` — no classes, no ORM wrapper.
 
-- `thread.server.ts`: CRUD for threads + `saveChat` (upserts last 2 messages)
-- `message.server.ts`: `addMessageToThread`
+- `thread.server.ts`: Tambo SDK wrapper — `createThread`, `getAllThreadsByUserKey`, `getThread`, `deleteThread` (threads & messages live in Tambo's cloud, not Prisma)
 - `session.server.ts`: `getUserFromSession`, `requireUser`, `requireAnonymous`, `hasRole`, `requireRole`
+- `note.server.ts`: CRUD for notes (stored in Prisma/PostgreSQL)
 
 ### Auth Flow
 
@@ -56,9 +56,13 @@ Plain exported async functions in `app/models/*.server.ts` — no classes, no OR
 
 ### AI Chat
 
-- Streaming via `streamText` in `app/routes/api-chat.ts`, persisted in `saveChat`
-- Client uses `useChat` from `@ai-sdk/react` with `DefaultChatTransport` pointing to `/api/chat`
-- `UIMessage.parts` serialized as JSON string in the `content` DB column
+- **Tambo is the source of truth** for threads and messages — no local DB storage for chat
+- Server-side: `app/lib/tambo.server.ts` creates a singleton `TamboAI` client (from `@tambo-ai/typescript-sdk`)
+- Client-side: `TamboProvider` in `app/root.tsx` with `apiKey` passed via loader at runtime
+- Chat UI uses `useTambo()` and `useTamboThreadInput()` hooks from `@tambo-ai/react`
+- Thread CRUD in loaders/actions goes through `app/models/thread.server.ts` → Tambo SDK
+- Custom tools defined in `app/lib/tambo.ts` (note CRUD via `/api/notes`)
+- Custom components registered with `TamboProvider`: `InfoCard`, `StepList`, `ProsCons`, `NotesGallery`, `DataTable`
 
 ## Conventions
 

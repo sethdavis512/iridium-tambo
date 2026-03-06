@@ -19,7 +19,6 @@ export default [
     route('/healthcheck', 'routes/healthcheck.ts'),
     ...prefix('/api', [
         route('/auth/*', 'routes/api-auth.ts'),
-        route('/chat', 'routes/api-chat.ts'),
         route('/notes', 'routes/api-notes.ts'),
     ]),
 ] satisfies RouteConfig;

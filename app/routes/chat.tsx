@@ -5,8 +5,7 @@ import type { Route } from './+types/chat';
 import {
     createThread,
     deleteThread,
-    getAllThreadsByUserId,
-    getThreadById,
+    getAllThreadsByUserKey,
 } from '~/models/thread.server';
 import { getUserFromSession } from '~/models/session.server';
 import invariant from 'tiny-invariant';
@@ -19,8 +18,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     const user = await getUserFromSession(request);
     invariant(user, 'User could not be found in session');
 
-    const threads = await getAllThreadsByUserId(user.id);
-    invariant(threads, 'Threads could not be found for user');
+    const threads = await getAllThreadsByUserKey(user.id);
 
     return {
         threads,
@@ -39,7 +37,7 @@ export async function action({ request }: Route.ActionArgs) {
             try {
                 const thread = await createThread(user.id);
 
-                return redirect(thread?.id);
+                return redirect(thread.id);
             } catch (error) {
                 throw new Response('Failed to create thread', { status: 500 });
             }
@@ -47,12 +45,8 @@ export async function action({ request }: Route.ActionArgs) {
 
         if (intent === 'delete-thread') {
             const threadId = String(form.get('threadId'));
-            const thread = await getThreadById(threadId);
 
-            invariant(thread, 'Thread not found');
-            invariant(thread.createdById === user.id, 'Unauthorized');
-
-            await deleteThread(threadId);
+            await deleteThread(threadId, user.id);
 
             return redirect('/chat');
         }
@@ -61,25 +55,8 @@ export async function action({ request }: Route.ActionArgs) {
     return null;
 }
 
-function getThreadLabel(thread: {
-    title?: string | null;
-    messages: { content: string }[];
-}): string {
-    if (thread.title && thread.title !== 'Untitled') return thread.title;
-
-    try {
-        const parts = JSON.parse(thread.messages[0]?.content ?? '[]');
-        const text = parts
-            .filter((p: { type: string }) => p.type === 'text')
-            .map((p: { text: string }) => p.text)
-            .join('');
-
-        return text.length > 30
-            ? `${text.slice(0, 30)}...`
-            : text || 'New Thread';
-    } catch {
-        return 'New Thread';
-    }
+function getThreadLabel(thread: { name?: string }): string {
+    return thread.name || 'New Thread';
 }
 
 export default function ChatRoute({ loaderData }: Route.ComponentProps) {

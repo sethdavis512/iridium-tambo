@@ -22,8 +22,6 @@ model User {
     banExpires    DateTime?
     sessions      Session[]
     accounts      Account[]
-    threads       Thread[]
-    messages      Message[]
     notes         Note[]
 
     @@unique([email])
@@ -79,43 +77,6 @@ model Verification {
     @@map("verification")
 }
 
-model Thread {
-    id          String    @id @default(cuid())
-    createdAt   DateTime  @default(now())
-    updatedAt   DateTime  @updatedAt
-    createdById String
-    title       String?
-    messages    Message[]
-    createdBy   User      @relation(fields: [createdById], references: [id], onDelete: Cascade)
-
-    @@map("thread")
-}
-
-model Message {
-    id        String      @id @default(cuid())
-    role      MessageRole
-    content   String
-    createdAt DateTime    @default(now())
-    userId    String?
-    threadId  String?
-    thread    Thread?     @relation(fields: [threadId], references: [id], onDelete: Cascade)
-    user      User?       @relation(fields: [userId], references: [id])
-
-    @@map("message")
-}
-
-enum Role {
-    USER
-    EDITOR
-    ADMIN
-}
-
-enum MessageRole {
-    USER
-    ASSISTANT
-    SYSTEM
-}
-
 model Note {
     id        String   @id @default(cuid())
     title     String
@@ -127,4 +88,10 @@ model Note {
 
     @@index([userId])
     @@map("note")
+}
+
+enum Role {
+    USER
+    EDITOR
+    ADMIN
 }

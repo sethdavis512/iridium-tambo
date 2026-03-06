@@ -21,11 +21,10 @@ import { ChatBubble } from '~/components/ChatBubble';
 import { Markdown } from '~/components/Markdown';
 import { NoteToolPart } from '~/components/NoteToolPart';
 import type { Route } from './+types/thread';
-import { getThreadById } from '~/models/thread.server';
 import { authMiddleware } from '~/middleware/auth';
 import { getUserFromSession } from '~/models/session.server';
 import invariant from 'tiny-invariant';
-import { data, isRouteErrorResponse, useRouteError } from 'react-router';
+import { isRouteErrorResponse, useRouteError } from 'react-router';
 import { useEffect, useRef, useState } from 'react';
 
 const PRESET_MESSAGES = [
@@ -60,13 +59,6 @@ export const middleware: Route.MiddlewareFunction[] = [authMiddleware];
 export async function loader({ request, params }: Route.LoaderArgs) {
     const user = await getUserFromSession(request);
     invariant(user, 'User could not be found in session');
-
-    const thread = await getThreadById(params.threadId);
-    invariant(thread, 'Thread could not be found');
-
-    if (thread.createdById !== user.id) {
-        throw data('Forbidden', { status: 403 });
-    }
 
     return { threadId: params.threadId };
 }

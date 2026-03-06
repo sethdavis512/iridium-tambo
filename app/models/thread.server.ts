@@ -1,98 +1,22 @@
-import { type UIMessage } from 'ai';
+import { getTamboClient } from '~/lib/tambo.server';
 
-import prisma from '~/lib/prisma';
-
-export function createThread(createdById: string) {
-    return prisma.thread.create({
-        data: {
-            createdById,
-            title: 'Untitled',
-        },
-    });
+export async function createThread(userKey: string) {
+    const client = getTamboClient();
+    return client.threads.create({ userKey });
 }
 
-export function getAllThreads() {
-    return prisma.thread.findMany({
-        include: {
-            messages: {
-                orderBy: { createdAt: 'asc' },
-            },
-        },
-    });
+export async function getAllThreadsByUserKey(userKey: string) {
+    const client = getTamboClient();
+    const response = await client.threads.list({ userKey });
+    return response.threads;
 }
 
-export function getAllThreadsByUserId(userId: string) {
-    return prisma.thread.findMany({
-        where: { createdById: userId },
-        include: {
-            messages: {
-                orderBy: { createdAt: 'asc' },
-            },
-        },
-        orderBy: { createdAt: 'desc' },
-    });
+export async function getThread(threadId: string, userKey: string) {
+    const client = getTamboClient();
+    return client.threads.retrieve(threadId, { userKey });
 }
 
-export function getThreadById(threadId: string) {
-    return prisma.thread.findUnique({
-        where: { id: threadId },
-        include: {
-            messages: {
-                orderBy: { createdAt: 'asc' },
-            },
-        },
-    });
-}
-
-export async function saveChat({
-    messages,
-    threadId,
-    userId,
-}: {
-    messages: UIMessage[];
-    threadId: string;
-    userId: string;
-}) {
-    const thread = await getThreadById(threadId);
-
-    if (!thread) throw new Error('Thread not found');
-
-    await prisma.thread.upsert({
-        where: { id: threadId },
-        update: {},
-        create: { id: threadId, createdById: userId, title: 'Untitled' },
-    });
-
-    const lastTwoMessages = messages.slice(-2);
-
-    for (const msg of lastTwoMessages) {
-        const content = JSON.stringify(msg.parts);
-
-        await prisma.message.upsert({
-            where: { id: msg.id },
-            update: {
-                content,
-            },
-            create: {
-                id: msg.id,
-                role: msg.role === 'user' ? 'USER' : 'ASSISTANT',
-                content,
-                threadId: thread.id,
-                userId: msg.role === 'user' ? userId : null,
-            },
-        });
-    }
-}
-
-export function updateThreadTitle(threadId: string, title: string) {
-    return prisma.thread.update({
-        where: { id: threadId },
-        data: { title },
-    });
-}
-
-export function deleteThread(threadId: string) {
-    return prisma.thread.delete({
-        where: { id: threadId },
-    });
+export async function deleteThread(threadId: string, userKey: string) {
+    const client = getTamboClient();
+    await client.threads.delete(threadId, { userKey });
 }
