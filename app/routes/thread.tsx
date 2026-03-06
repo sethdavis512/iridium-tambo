@@ -111,17 +111,17 @@ export default function ThreadRoute({ params }: Route.ComponentProps) {
         isStreaming,
         isWaiting,
         currentThreadId,
-        initThread,
+        switchThread,
         cancelRun,
         streamingState,
     } = useTambo();
 
     const { value, setValue, submit, isPending } = useTamboThreadInput();
 
-    // Bind the React Router thread ID into Tambo's runtime.
+    // Switch Tambo's active thread when the route param changes.
     useEffect(() => {
-        initThread(params.threadId);
-    }, [params.threadId, initThread]);
+        switchThread(params.threadId);
+    }, [params.threadId, switchThread]);
 
     // Auto-scroll to bottom on new messages.
     useEffect(() => {
