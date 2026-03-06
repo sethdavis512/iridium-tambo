@@ -1,4 +1,4 @@
-import { useReducer, type JSX } from 'react';
+import { useReducer } from 'react';
 import {
     Form,
     isRouteErrorResponse,

@@ -38,8 +38,7 @@ export default function Home() {
                         helpers.
                     </li>
                     <li>
-                        AI chat powered by VoltAgent and the Vercel AI SDK.
-                        Messages persist to PostgreSQL and are organized into
+                        AI chat powered by Tambo AI. Messages are organized into
                         threads so conversations are never lost.
                     </li>
                     <li>
@@ -50,13 +49,12 @@ export default function Home() {
                     </li>
                     <li>
                         A browsable Notes page where users can see everything
-                        the agent has saved for them, completing the
-                        tool-to-UI vertical slice.
+                        the agent has saved for them, completing the tool-to-UI
+                        vertical slice.
                     </li>
                     <li>
-                        Working memory powered by VoltAgent and PostgreSQL. The
-                        agent remembers user preferences and context across
-                        conversations.
+                        Working memory powered by Tambo AI. The agent remembers
+                        user preferences and context across conversations.
                     </li>
                     <li>
                         Client and server-side form validation using Zod and
@@ -78,10 +76,9 @@ export default function Home() {
                         PostgreSQL via Prisma, schema at prisma/schema.prisma
                     </li>
                     <li>
-                        VoltAgent for agent orchestration, memory, and tool
+                        Tambo AI for agent orchestration, memory, and tool
                         execution
                     </li>
-                    <li>Vercel AI SDK for streaming chat UI</li>
                     <li>Tailwind CSS v4 and DaisyUI v5 for styling</li>
                     <li>
                         Bun for local development, Node 20 Alpine for production
@@ -105,9 +102,8 @@ export default function Home() {
                         <code>app/models/</code>.
                     </li>
                     <li>
-                        Add a <code>createTool()</code> definition in{' '}
-                        <code>app/voltagent/agents.ts</code> and wire it into
-                        the agent&apos;s tools array.
+                        Add a tool definition in <code>app/lib/tambo.ts</code>{' '}
+                        and register it with the TamboProvider.
                     </li>
                     <li>
                         Build a tool UI component in{' '}
