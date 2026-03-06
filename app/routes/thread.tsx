@@ -258,8 +258,11 @@ export default function ThreadRoute({ params }: Route.ComponentProps) {
                                         return null;
                                     },
                                 )}
-                                {/* Waiting indicator for empty assistant message */}
+                                {/* Waiting indicator for assistant message with only tool results (still processing) */}
                                 {!isUser &&
+                                    (isStreaming || isWaiting) &&
+                                    message ===
+                                        messages[messages.length - 1] &&
                                     message.content.every(
                                         (b: Content) =>
                                             b.type === 'tool_result',
