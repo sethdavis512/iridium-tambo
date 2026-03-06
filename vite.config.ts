@@ -31,7 +31,8 @@ export default defineConfig({
                 }
             },
             load(id) {
-                if (id === '\0ssr-empty') return 'export default {}';
+                if (id === '\0ssr-empty')
+                    return 'export default {}; export const useReactMediaRecorder = () => ({});';
             },
         },
     ],
